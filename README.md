@@ -17,7 +17,7 @@ start_all.bat
 **1. Start Backend:**
 ```bash
 # Navigate to project root
-cd "C:\Users\19257\Desktop\Image Analysis Platform"
+cd "C:\Users\...\Image Analysis Platform"
 
 # Double-click or run:
 start_backend.bat
