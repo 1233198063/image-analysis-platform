@@ -42,7 +42,7 @@ class AnalysisResult(BaseModel):
     processing_time: float
 
 class UploadResponse(BaseModel):
-    id: str
+    file_id: str
     filename: str
     file_path: str
     message: str

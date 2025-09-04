@@ -48,7 +48,7 @@ async def upload_image(file: UploadFile = File(...)):
             await f.write(content)
         
         return UploadResponse(
-            id=file_id,
+            file_id=file_id,
             filename=file.filename,
             file_path=file_path,
             message="File uploaded successfully"

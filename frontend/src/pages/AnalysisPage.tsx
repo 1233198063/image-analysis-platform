@@ -56,7 +56,8 @@ const AnalysisPage: React.FC = () => {
     try {
       const savedData = localStorage.getItem('latestAnalysis');
       if (savedData) {
-        setAnalysisData(JSON.parse(savedData));
+        const parsedData = JSON.parse(savedData);
+        setAnalysisData(parsedData);
       }
     } catch (error) {
       console.error('Failed to load analysis data:', error);
@@ -149,6 +150,16 @@ const AnalysisPage: React.FC = () => {
               Refresh
             </Button>
             <Button 
+              onClick={() => {
+                localStorage.removeItem('latestAnalysis');
+                loadAnalysisData();
+              }}
+              style={{ marginRight: '8px' }}
+              type="dashed"
+            >
+              Clear Cache
+            </Button>
+            <Button 
               type="primary" 
               icon={<DownloadOutlined />} 
               onClick={exportResults}
@@ -216,16 +227,25 @@ const AnalysisPage: React.FC = () => {
               <Title level={4}>Dominant Colors</Title>
               <div className="color-palette">
                 {analysisData.color_analysis.dominant_colors.slice(0, 5).map((color, index) => (
-                  <div key={index} style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <div key={index} style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    minWidth: '80px',
+                    textAlign: 'center'
+                  }}>
                     <div
                       className="color-swatch"
                       style={{ backgroundColor: color.hex }}
                       title={`${color.hex} (${color.percentage.toFixed(1)}%)`}
                     />
                     <div className="color-percentage">
-                      <Text strong>{color.percentage.toFixed(1)}%</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: '12px' }}>{color.hex}</Text>
+                      <Text strong style={{ fontSize: '12px', display: 'block' }}>
+                        {color.percentage.toFixed(1)}%
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: '10px', display: 'block' }}>
+                        {color.hex}
+                      </Text>
                     </div>
                   </div>
                 ))}
@@ -261,7 +281,7 @@ const AnalysisPage: React.FC = () => {
                   <Progress
                     type="circle"
                     percent={Math.round(analysisData.color_analysis!.brightness / 2.55)}
-                    width={60}
+                    size={60}
                     format={() => Math.round(analysisData.color_analysis!.brightness)}
                   />
                 </Col>
@@ -271,7 +291,7 @@ const AnalysisPage: React.FC = () => {
                   <Progress
                     type="circle"
                     percent={Math.round(analysisData.color_analysis!.contrast / 2.55)}
-                    width={60}
+                    size={60}
                     format={() => Math.round(analysisData.color_analysis!.contrast)}
                   />
                 </Col>
@@ -281,7 +301,7 @@ const AnalysisPage: React.FC = () => {
                   <Progress
                     type="circle"
                     percent={Math.round(analysisData.color_analysis!.saturation * 100)}
-                    width={60}
+                    size={60}
                     format={(percent) => `${percent}%`}
                   />
                 </Col>
@@ -324,6 +344,15 @@ const AnalysisPage: React.FC = () => {
             type="info"
             showIcon
           />
+        </Card>
+      )}
+      
+      {/* Debug: Show raw text detection data */}
+      {analysisData.text_detection && (
+        <Card title="🐛 Debug: Text Detection Data" style={{ marginBottom: '24px', background: '#f0f0f0' }}>
+          <pre style={{ fontSize: '10px', overflow: 'auto' }}>
+            {JSON.stringify(analysisData.text_detection, null, 2)}
+          </pre>
         </Card>
       )}
 

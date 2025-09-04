@@ -1,10 +1,10 @@
-import axios, { AxiosResponse } from 'axios';
+import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 seconds timeout
+  timeout: 120000, // 120 seconds timeout (2 minutes) for image analysis
 });
 
 // Request interceptor
@@ -59,13 +59,47 @@ interface ListImagesResponse {
   }>;
 }
 
-interface AnalysisResponse {
-  analysis_id: string;
-  image_id: string;
-  results: any;
-  status: string;
+interface ColorData {
+  rgb: number[];
+  hex: string;
+  percentage: number;
 }
 
+interface ColorAnalysisResult {
+  dominant_colors: ColorData[];
+  color_temperature: number;
+  color_harmony_score: number;
+  brightness: number;
+  contrast: number;
+  saturation: number;
+}
+
+interface TextDetectionItem {
+  text: string;
+  confidence: number;
+  bounding_box: number[];
+}
+
+interface ImageStats {
+  width: number;
+  height: number;
+  channels: number;
+  file_size: number;
+  format: string;
+}
+
+interface AnalysisResponse {
+  id: string;
+  filename: string;
+  business_type?: string;
+  upload_time: string;
+  image_stats: ImageStats;
+  color_analysis?: ColorAnalysisResult;
+  text_detection?: TextDetectionItem[];
+  processing_time: number;
+}
+
+// Legacy interfaces - kept for backward compatibility with other services
 interface ColorAnalysisResponse {
   dominant_colors: Array<{
     color: string;
@@ -115,11 +149,23 @@ export const analysisService = {
     businessType: string | null = null, 
     analysisTypes: string[] = ['color', 'text']
   ): Promise<AnalysisResponse> => {
-    const response = await api.post('/api/analysis', {
+    const requestBody = {
       image_id: imageId,
       business_type: businessType,
       analysis_types: analysisTypes,
-    });
+    };
+    
+    console.log('=== API Request Body ===');
+    console.log('Request URL:', '/api/analysis');
+    console.log('Request body:', requestBody);
+    console.log('Request body JSON:', JSON.stringify(requestBody));
+    
+    const response = await api.post('/api/analysis', requestBody);
+    
+    console.log('=== API Response ===');
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    console.log('Response data:', response.data);
     
     return response.data;
   },

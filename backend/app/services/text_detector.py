@@ -5,6 +5,11 @@ import re
 from typing import List, Optional
 import torch
 
+# Fix PIL compatibility issue for EasyOCR
+import PIL.Image
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
+
 try:
     import easyocr
     EASYOCR_AVAILABLE = True
@@ -33,12 +38,12 @@ class TextDetector:
                 print(f"WARNING: EasyOCR initialization failed: {e}")
                 self.easyocr_reader = None
         
-        self.min_confidence = 0.6
-        self.min_length = 2
+        self.min_confidence = 0.3  # Lowered from 0.6 to catch more text
+        self.min_length = 1        # Lowered from 2 to catch single characters
     
     def calculate_text_quality(self, text: str, business_type: str = "General") -> float:
         """Calculate text quality with business-specific keywords"""
-        if not text or len(text.strip()) < 2:
+        if not text or len(text.strip()) < 1:  # Changed from 2 to 1
             return 0.0
         
         text = text.strip()
@@ -117,8 +122,8 @@ class TextDetector:
         
         text = text.strip()
         
-        # Basic quality check
-        if self.calculate_text_quality(text) < 0.4:
+        # Basic quality check - lowered threshold
+        if self.calculate_text_quality(text) < 0.2:  # Lowered from 0.4 to 0.2
             return False
         
         # Check for noise patterns
@@ -155,22 +160,43 @@ class TextDetector:
         results = []
         
         if not self.easyocr_reader:
+            print("EasyOCR reader not initialized")
             return results
         
         try:
             easyocr_results = self.easyocr_reader.readtext(np.array(image))
+            print(f"EasyOCR raw results: {len(easyocr_results)} items")
+            
             for (bbox, text, confidence) in easyocr_results:
+                print(f"Raw text: '{text}' (confidence: {confidence:.3f})")
+                
                 if confidence > self.min_confidence:
+                    print(f"  - Passed confidence check (>{self.min_confidence})")
                     cleaned = self.clean_text(text)
-                    if cleaned and len(cleaned) >= self.min_length and self.is_meaningful_text(cleaned):
-                        # Convert bbox to flat list of coordinates
-                        flat_bbox = [int(coord) for point in bbox for coord in point]
+                    print(f"  - Cleaned text: '{cleaned}'")
+                    
+                    if cleaned and len(cleaned) >= self.min_length:
+                        print(f"  - Passed length check (>={self.min_length})")
                         
-                        results.append(TextDetectionResult(
-                            text=cleaned,
-                            confidence=float(confidence),
-                            bounding_box=flat_bbox
-                        ))
+                        if self.is_meaningful_text(cleaned):
+                            print(f"  - Passed meaningful text check")
+                            # Convert bbox to flat list of coordinates
+                            flat_bbox = [int(coord) for point in bbox for coord in point]
+                            
+                            results.append(TextDetectionResult(
+                                text=cleaned,
+                                confidence=float(confidence),
+                                bounding_box=flat_bbox
+                            ))
+                            print(f"  - Added to results!")
+                        else:
+                            quality_score = self.calculate_text_quality(cleaned, business_type)
+                            print(f"  - Failed meaningful text check (quality: {quality_score:.3f})")
+                    else:
+                        print(f"  - Failed length check (len={len(cleaned) if cleaned else 0})")
+                else:
+                    print(f"  - Failed confidence check ({confidence:.3f} <= {self.min_confidence})")
+                    
         except Exception as e:
             print(f"EasyOCR error: {e}")
         
@@ -213,8 +239,11 @@ class TextDetector:
     
     async def detect_text_comprehensive(self, image_path: str, business_type: str = "General") -> List[TextDetectionResult]:
         """Comprehensive text detection using available OCR engines"""
+        print(f"Starting text detection for {image_path}, business_type: {business_type}")
+        
         try:
             image = Image.open(image_path).convert('RGB')
+            print(f"Image loaded successfully: {image.size}")
         except Exception as e:
             raise Exception(f"Cannot open image {image_path}: {e}")
         
@@ -222,13 +251,21 @@ class TextDetector:
         
         # Try EasyOCR first (usually better accuracy)
         if self.easyocr_reader:
+            print("Using EasyOCR for text detection...")
             easyocr_results = self.extract_text_easyocr(image, business_type)
+            print(f"EasyOCR found {len(easyocr_results)} results")
             all_results.extend(easyocr_results)
+        else:
+            print("EasyOCR not available")
         
         # If no results from EasyOCR, try Tesseract
         if not all_results and TESSERACT_AVAILABLE:
+            print("No EasyOCR results, trying Tesseract...")
             tesseract_results = self.extract_text_tesseract(image, business_type)
+            print(f"Tesseract found {len(tesseract_results)} results")
             all_results.extend(tesseract_results)
+        elif not all_results:
+            print("No OCR engines available or produced results")
         
         # Remove duplicates and sort by confidence
         unique_results = []
@@ -238,5 +275,9 @@ class TextDetector:
             if result.text.lower() not in seen_texts:
                 seen_texts.add(result.text.lower())
                 unique_results.append(result)
+        
+        print(f"Final unique results: {len(unique_results)}")
+        for result in unique_results:
+            print(f"  - '{result.text}' (confidence: {result.confidence:.2f})")
         
         return unique_results

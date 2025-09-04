@@ -51,7 +51,18 @@ const UploadPage: React.FC = () => {
       });
       message.success('Image uploaded successfully!');
     } catch (error: any) {
-      message.error('Upload failed: ' + (error.response?.data?.detail || error.message));
+      console.error('Upload error:', error);
+      let errorMessage = 'Upload failed';
+      
+      if (error.response?.data?.detail) {
+        errorMessage = `Upload failed: ${error.response.data.detail}`;
+      } else if (error.message) {
+        errorMessage = `Upload failed: ${error.message}`;
+      } else {
+        errorMessage = `Upload failed: ${JSON.stringify(error)}`;
+      }
+      
+      message.error(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -82,11 +93,26 @@ const UploadPage: React.FC = () => {
 
     try {
       setAnalyzing(true);
+      
+      console.log('=== Analysis Request Debug ===');
+      console.log('file_id:', uploadedFile.file_id);
+      console.log('businessType:', businessType);
+      console.log('analysisTypes:', analysisTypes);
+      console.log('businessType processed:', businessType === 'General' ? null : businessType);
+      
       const response = await analysisService.analyzeImage(
         uploadedFile.file_id,
         businessType === 'General' ? null : businessType,
         analysisTypes
       );
+      
+      console.log('=== Analysis Response Debug ===');
+      console.log('Full response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', Object.keys(response));
+      console.log('Text detection in response:', response.text_detection);
+      console.log('Text detection type:', typeof response.text_detection);
+      console.log('Text detection is array:', Array.isArray(response.text_detection));
       
       message.success('Analysis completed successfully!');
       
@@ -97,7 +123,32 @@ const UploadPage: React.FC = () => {
       window.location.href = '/analysis';
       
     } catch (error: any) {
-      message.error('Analysis failed: ' + (error.response?.data?.detail || error.message));
+      console.error('Analysis error - Full error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      
+      let errorMessage = 'Analysis failed';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Analysis failed: Request timeout - the analysis is taking longer than expected. Please try again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Analysis failed: Image not found. Please re-upload the image.';
+      } else if (error.response?.status === 500) {
+        errorMessage = `Analysis failed: ${error.response?.data?.detail || 'Internal server error'}`;
+      } else if (error.response?.data?.detail) {
+        errorMessage = `Analysis failed: ${error.response.data.detail}`;
+      } else if (error.message && error.message !== 'Network Error') {
+        errorMessage = `Analysis failed: ${error.message}`;
+      } else if (error.response?.status) {
+        errorMessage = `Analysis failed: HTTP ${error.response.status} - ${error.response.statusText}`;
+      } else if (error.toString && typeof error.toString === 'function') {
+        errorMessage = `Analysis failed: ${error.toString()}`;
+      } else {
+        errorMessage = `Analysis failed: Unknown error occurred. Check browser console for details.`;
+      }
+      
+      message.error(errorMessage, 10); // Show error for 10 seconds
     } finally {
       setAnalyzing(false);
     }
@@ -228,6 +279,7 @@ const UploadPage: React.FC = () => {
                     <li><strong>Business Type:</strong> Affects text detection quality scoring with industry-specific keywords</li>
                     <li><strong>Color Analysis:</strong> Extracts dominant colors, calculates harmony and temperature</li>
                     <li><strong>Text Detection:</strong> OCR extraction with confidence scoring and quality assessment</li>
+                    <li><strong>Processing Time:</strong> Analysis typically takes 30-90 seconds depending on image complexity</li>
                   </ul>
                 }
                 type="info"
