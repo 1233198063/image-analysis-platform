@@ -7,13 +7,14 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 interface ColorData {
-  color: string;
+  hex: string;
   percentage: number;
+  rgb?: number[];
 }
 
 interface ColorResults {
   dominant_colors: ColorData[];
-  color_temperature: string;
+  color_temperature: number;
   interpretation?: string;
 }
 
@@ -46,9 +47,20 @@ const ColorAnalysisPage: React.FC = () => {
       // Get color temperature
       const temperatureData = await colorService.getColorTemperature(imageId);
 
+      console.log('=== Color Analysis Debug ===');
+      console.log('Dominant colors response:', dominantColors);
+      console.log('Temperature response:', temperatureData);
+      console.log('First color data:', dominantColors.dominant_colors[0]);
+
       setResults({
-        dominant_colors: dominantColors.dominant_colors,
-        color_temperature: temperatureData.color_temperature,
+        dominant_colors: dominantColors.dominant_colors.map((color: any) => ({
+          hex: color.hex || color.color,
+          percentage: color.percentage,
+          rgb: color.rgb
+        })),
+        color_temperature: typeof temperatureData.color_temperature === 'string' 
+          ? parseFloat(temperatureData.color_temperature.replace(/[^0-9.-]/g, ''))
+          : temperatureData.color_temperature,
         interpretation: temperatureData.interpretation
       });
     } catch (err: any) {
@@ -64,18 +76,18 @@ const ColorAnalysisPage: React.FC = () => {
         style={{
           width: '80px',
           height: '80px',
-          backgroundColor: color.color,
+          backgroundColor: color.hex,
           borderRadius: '8px',
           border: '1px solid #d9d9d9',
           margin: '0 auto 8px auto',
           cursor: 'pointer'
         }}
-        title={`${color.color} (${color.percentage.toFixed(1)}%)`}
+        title={`${color.hex} (${color.percentage.toFixed(1)}%)`}
       />
       <div>
         <Text strong>{color.percentage.toFixed(1)}%</Text>
         <br />
-        <Text type="secondary" style={{ fontSize: '12px' }}>{color.color}</Text>
+        <Text type="secondary" style={{ fontSize: '12px' }}>{color.hex}</Text>
       </div>
     </div>
   );
@@ -172,13 +184,13 @@ const ColorAnalysisPage: React.FC = () => {
                         style={{
                           width: '24px',
                           height: '24px',
-                          backgroundColor: results.dominant_colors[0]?.color,
+                          backgroundColor: results.dominant_colors[0]?.hex,
                           borderRadius: '4px',
                           border: '1px solid #d9d9d9',
                           marginRight: '8px'
                         }}
                       />
-                      <Text>{results.dominant_colors[0]?.color} ({results.dominant_colors[0]?.percentage.toFixed(1)}%)</Text>
+                      <Text>{results.dominant_colors[0]?.hex} ({results.dominant_colors[0]?.percentage.toFixed(1)}%)</Text>
                     </div>
                   </Col>
                   <Col span={8}>
@@ -203,7 +215,7 @@ const ColorAnalysisPage: React.FC = () => {
                 <Col span={12}>
                   <div style={{ textAlign: 'center' }}>
                     <Title level={3} style={{ marginBottom: '8px' }}>
-                      {results.color_temperature}
+                      {results.color_temperature}K
                     </Title>
                     <Tag 
                       color={results.interpretation === 'warm' ? 'volcano' : 'blue'} 
@@ -218,7 +230,7 @@ const ColorAnalysisPage: React.FC = () => {
                     <Text strong>Temperature Scale:</Text>
                     <div style={{ margin: '16px 0' }}>
                       <Progress
-                        percent={((parseFloat(results.color_temperature.replace(/[^0-9.-]/g, '')) - 2000) / 8000) * 100}
+                        percent={((results.color_temperature - 2000) / 8000) * 100}
                         showInfo={false}
                         strokeColor={{
                           '0%': '#4096ff',
