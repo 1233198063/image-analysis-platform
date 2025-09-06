@@ -347,14 +347,6 @@ const AnalysisPage: React.FC = () => {
         </Card>
       )}
       
-      {/* Debug: Show raw text detection data */}
-      {analysisData.text_detection && (
-        <Card title="🐛 Debug: Text Detection Data" style={{ marginBottom: '24px', background: '#f0f0f0' }}>
-          <pre style={{ fontSize: '10px', overflow: 'auto' }}>
-            {JSON.stringify(analysisData.text_detection, null, 2)}
-          </pre>
-        </Card>
-      )}
 
       {/* Summary */}
       <Card title="📋 Analysis Summary">

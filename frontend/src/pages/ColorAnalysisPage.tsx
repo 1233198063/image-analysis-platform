@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, Input, Select, Alert, Row, Col, Spin, Tag, Progress } from 'antd';
-import { BgColorsOutlined, BarChartOutlined } from '@ant-design/icons';
+import { BgColorsOutlined, BarChartOutlined, ReloadOutlined } from '@ant-design/icons';
 import { colorService } from '../services/api';
 
 const { Title, Text } = Typography;
@@ -30,6 +30,49 @@ const ColorAnalysisPage: React.FC = () => {
   const [results, setResults] = useState<ColorResults | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Load saved data on component mount
+  useEffect(() => {
+    loadSavedData();
+  }, []);
+
+  const loadSavedData = (): void => {
+    try {
+      const savedResults = localStorage.getItem('colorAnalysisResults');
+      const savedImageId = localStorage.getItem('colorAnalysisImageId');
+      const savedNColors = localStorage.getItem('colorAnalysisNColors');
+      
+      if (savedResults) {
+        setResults(JSON.parse(savedResults));
+      }
+      if (savedImageId) {
+        setImageId(savedImageId);
+      }
+      if (savedNColors) {
+        setNColors(parseInt(savedNColors));
+      }
+    } catch (error) {
+      console.error('Failed to load saved color analysis data:', error);
+    }
+  };
+
+  const saveResults = (results: ColorResults, imageId: string, nColors: number): void => {
+    try {
+      localStorage.setItem('colorAnalysisResults', JSON.stringify(results));
+      localStorage.setItem('colorAnalysisImageId', imageId);
+      localStorage.setItem('colorAnalysisNColors', nColors.toString());
+    } catch (error) {
+      console.error('Failed to save color analysis data:', error);
+    }
+  };
+
+  const clearResults = (): void => {
+    setResults(null);
+    setError(null);
+    localStorage.removeItem('colorAnalysisResults');
+    localStorage.removeItem('colorAnalysisImageId');
+    localStorage.removeItem('colorAnalysisNColors');
+  };
+
   const handleAnalyze = async (): Promise<void> => {
     if (!imageId.trim()) {
       setError('Please enter an image ID');
@@ -52,7 +95,7 @@ const ColorAnalysisPage: React.FC = () => {
       console.log('Temperature response:', temperatureData);
       console.log('First color data:', dominantColors.dominant_colors[0]);
 
-      setResults({
+      const newResults = {
         dominant_colors: dominantColors.dominant_colors.map((color: any) => ({
           hex: color.hex || color.color,
           percentage: color.percentage,
@@ -62,7 +105,10 @@ const ColorAnalysisPage: React.FC = () => {
           ? parseFloat(temperatureData.color_temperature.replace(/[^0-9.-]/g, ''))
           : temperatureData.color_temperature,
         interpretation: temperatureData.interpretation
-      });
+      };
+      
+      setResults(newResults);
+      saveResults(newResults, imageId, nColors);
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -102,7 +148,7 @@ const ColorAnalysisPage: React.FC = () => {
         {/* Input Section */}
         <Card title="Analysis Configuration" style={{ marginBottom: '24px' }}>
           <Row gutter={16} align="middle">
-            <Col span={8}>
+            <Col span={10}>
               <Text strong>Image ID:</Text>
               <Input
                 placeholder="Enter uploaded image ID"
@@ -111,7 +157,7 @@ const ColorAnalysisPage: React.FC = () => {
                 style={{ marginTop: '8px' }}
               />
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Text strong>Number of Colors:</Text>
               <Select
                 value={nColors}
@@ -124,7 +170,7 @@ const ColorAnalysisPage: React.FC = () => {
                 <Option value={10}>10 Colors</Option>
               </Select>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Button
                 type="primary"
                 icon={<BarChartOutlined />}
@@ -134,6 +180,17 @@ const ColorAnalysisPage: React.FC = () => {
                 style={{ marginTop: '24px', width: '100%' }}
               >
                 Analyze Colors
+              </Button>
+            </Col>
+            <Col span={2}>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={clearResults}
+                disabled={!results}
+                style={{ marginTop: '24px', width: '100%' }}
+                title="Clear Results"
+              >
+                Clear
               </Button>
             </Col>
           </Row>
